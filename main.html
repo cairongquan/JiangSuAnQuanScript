@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <div id="app">
+        <button id="buttonOne" @click="getData">点击发送</button>
+        <button id="buttonTwo" @click="start">点击考试</button>
+        <button @click="submit">提交试卷</button>
+    </div>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/vue"></script>
+<script src="https://cdn.staticfile.org/axios/0.18.0/axios.min.js"></script>
+
+
+<script>
+    const vm = new Vue({
+        data() {
+            return {
+                listData: [],
+                goList: [],
+
+                anArray: [],
+                paperStuId: "", //考试编号
+                paperId: "",//考卷编号
+                i: 0
+            }
+        },
+        el: "#app",
+        methods: {
+            async getData() {
+                let { data: res } = await axios.post("http://localhost:3000");
+                console.log(res);
+                this.listData = res.list;
+                this.forEach();
+            },
+            // 遍历数据
+            async forEach() {
+                this.goList = this.listData.map(item => {
+                    let second = item.videoTimeLong.split(':');
+                    return {
+                        courseId: "qkcfawcsxyrom0zrwghhwq",
+                        moduleIds: "amifawcspkfh3ziyldznq",
+                        cellId: item.id,
+                        auvideoLength: second[0] * 60 + Number(second[1]),
+                        videoTimeTotalLong: second[0] * 60 + Number(second[1])
+                    }
+                })
+                let o = 0;
+                for (let i = 0; i < this.goList.length; i++) {
+                    if (i == this.goList.length - 1) {
+                        i = 0;
+                        o++;
+                    }
+                    if (o == 30) {
+                        return;
+                    }
+                    this.send(this.goList[i]);
+                }
+            },
+            async send(item) {
+                let { data: res } = await axios.post('http://localhost:3000/GetId', item);
+            },
+            async start() {
+                let { data: res } = await axios.post('http://localhost:3000/getAn');
+                this.anArray = res.paperStuQuesList; //获取考试答案
+                this.creatQAN();
+            },
+            async creatQAN() {
+                let { data: resOne } = await axios.post('http://localhost:3000/creatAn');
+                if (resOne.stuPaperQuesList[0].quesId != "3nmtahsiqfntldblqs1q") {
+                    return this.creatQAN();
+                }
+                else {
+                    console.log("开始了");
+                    console.log(resOne);
+                    this.paperStuId = resOne.paperStuId;
+                    this.paperId = resOne.paperId;
+                    this.i = 0;
+                    this.sendAn();
+                }
+            },
+
+            async submit() {
+                let { data: resTwo } = await axios.post('http://localhost:3000/sumit', {
+                    paperStuId: this.paperStuId,
+                    paperId: this.paperId
+                });
+                console.log(resTwo);
+            },
+            async sendAn() {
+                if (this.i == this.anArray.length) {
+                    console.log("结束了");
+                    return;
+                }
+                let item = this.anArray[this.i];
+                let answerJson = {};
+                let anStr = item.answers.join("；");
+                answerJson = {
+                    "quesId": item.paperQuestionId,
+                    "answer": anStr.length == 1 ? Number(anStr) : anStr
+                }
+                let { data: res } = await axios.post('http://localhost:3000/pickAn', {
+                    paperStuId: this.paperStuId,
+                    paperId: this.paperId,
+                    quesId: item.paperQuestionId,
+                    answerJson: answerJson
+                })
+                this.sendAn();
+                this.i++;
+            }
+        },
+        async created() {
+            console.log();
+        },
+    })
+</script>
+
+</html>
